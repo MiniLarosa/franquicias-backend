@@ -1,10 +1,14 @@
-package com.franquicias.backend.service;
+package com.franquicias.backend.application.usecase;
 
+import com.franquicias.backend.application.dto.ProductoMaximoStock;
+import com.franquicias.backend.application.port.out.FranquiciaPersistencePort;
+import com.franquicias.backend.application.support.ErrorMessages;
 import com.franquicias.backend.domain.Franquicia;
 import com.franquicias.backend.domain.Producto;
 import com.franquicias.backend.domain.Sucursal;
-import com.franquicias.backend.repository.FranquiciaRepository;
+import com.franquicias.backend.service.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -14,22 +18,25 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
-public class FranquiciaService {
+public class FranquiciaUseCase {
 
-    private final FranquiciaRepository franquiciaRepository;
+    private final FranquiciaPersistencePort franquiciaPersistencePort;
 
     public Mono<Franquicia> crearFranquicia(String nombre) {
+        log.info("Creando franquicia con nombre={}", nombre);
         Franquicia franquicia = Franquicia.builder()
                 .nombre(nombre)
                 .sucursales(new ArrayList<>())
                 .build();
-        return franquiciaRepository.save(franquicia);
+        return franquiciaPersistencePort.save(franquicia);
     }
 
     public Mono<Franquicia> agregarSucursal(String franquiciaId, String nombreSucursal) {
-        return franquiciaRepository.findById(franquiciaId)
-                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+        log.info("Agregando sucursal a franquiciaId={} nombre={}", franquiciaId, nombreSucursal);
+        return franquiciaPersistencePort.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException(ErrorMessages.FRANQUICIA_NO_ENCONTRADA)))
                 .flatMap(franquicia -> {
                     Sucursal sucursal = Sucursal.builder()
                             .id(UUID.randomUUID().toString())
@@ -37,13 +44,14 @@ public class FranquiciaService {
                             .productos(new ArrayList<>())
                             .build();
                     franquicia.getSucursales().add(sucursal);
-                    return franquiciaRepository.save(franquicia);
+                    return franquiciaPersistencePort.save(franquicia);
                 });
     }
 
     public Mono<Franquicia> agregarProducto(String franquiciaId, String sucursalId, String nombreProducto, Integer stock) {
-        return franquiciaRepository.findById(franquiciaId)
-                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+        log.info("Agregando producto a franquiciaId={} sucursalId={} nombre={} stock={}", franquiciaId, sucursalId, nombreProducto, stock);
+        return franquiciaPersistencePort.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException(ErrorMessages.FRANQUICIA_NO_ENCONTRADA)))
                 .flatMap(franquicia -> {
                     Sucursal sucursal = obtenerSucursal(franquicia, sucursalId);
                     Producto producto = Producto.builder()
@@ -52,37 +60,40 @@ public class FranquiciaService {
                             .stock(stock)
                             .build();
                     sucursal.getProductos().add(producto);
-                    return franquiciaRepository.save(franquicia);
+                    return franquiciaPersistencePort.save(franquicia);
                 });
     }
 
     public Mono<Franquicia> eliminarProducto(String franquiciaId, String sucursalId, String productoId) {
-        return franquiciaRepository.findById(franquiciaId)
-                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+        log.info("Eliminando producto de franquiciaId={} sucursalId={} productoId={}", franquiciaId, sucursalId, productoId);
+        return franquiciaPersistencePort.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException(ErrorMessages.FRANQUICIA_NO_ENCONTRADA)))
                 .flatMap(franquicia -> {
                     Sucursal sucursal = obtenerSucursal(franquicia, sucursalId);
                     boolean removed = sucursal.getProductos().removeIf(producto -> producto.getId().equals(productoId));
                     if (!removed) {
-                        return Mono.error(new NotFoundException("Producto no encontrado en la sucursal"));
+                        return Mono.error(new NotFoundException(ErrorMessages.PRODUCTO_NO_ENCONTRADO));
                     }
-                    return franquiciaRepository.save(franquicia);
+                    return franquiciaPersistencePort.save(franquicia);
                 });
     }
 
     public Mono<Franquicia> actualizarStockProducto(String franquiciaId, String sucursalId, String productoId, Integer stock) {
-        return franquiciaRepository.findById(franquiciaId)
-                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+        log.info("Actualizando stock de franquiciaId={} sucursalId={} productoId={} stock={}", franquiciaId, sucursalId, productoId, stock);
+        return franquiciaPersistencePort.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException(ErrorMessages.FRANQUICIA_NO_ENCONTRADA)))
                 .flatMap(franquicia -> {
                     Sucursal sucursal = obtenerSucursal(franquicia, sucursalId);
                     Producto producto = obtenerProducto(sucursal, productoId);
                     producto.setStock(stock);
-                    return franquiciaRepository.save(franquicia);
+                    return franquiciaPersistencePort.save(franquicia);
                 });
     }
 
     public Mono<List<ProductoMaximoStock>> obtenerProductoMaximoStockPorSucursal(String franquiciaId) {
-        return franquiciaRepository.findById(franquiciaId)
-                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+        log.info("Consultando producto maximo stock por sucursal para franquiciaId={}", franquiciaId);
+        return franquiciaPersistencePort.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException(ErrorMessages.FRANQUICIA_NO_ENCONTRADA)))
                 .map(franquicia -> franquicia.getSucursales().stream()
                         .map(sucursal -> buscarProductoConMayorStock(sucursal)
                                 .map(producto -> new ProductoMaximoStock(
@@ -97,32 +108,36 @@ public class FranquiciaService {
     }
 
     public Mono<Franquicia> actualizarNombreFranquicia(String franquiciaId, String nombre) {
-        return franquiciaRepository.findById(franquiciaId)
-                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+        log.info("Actualizando nombre de franquiciaId={} nuevoNombre={}", franquiciaId, nombre);
+        return franquiciaPersistencePort.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException(ErrorMessages.FRANQUICIA_NO_ENCONTRADA)))
                 .flatMap(franquicia -> {
                     franquicia.setNombre(nombre);
-                    return franquiciaRepository.save(franquicia);
+                    return franquiciaPersistencePort.save(franquicia);
                 });
     }
 
     public Mono<Franquicia> actualizarNombreSucursal(String franquiciaId, String sucursalId, String nombre) {
-        return franquiciaRepository.findById(franquiciaId)
-                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+        log.info("Actualizando nombre sucursal de franquiciaId={} sucursalId={} nuevoNombre={}", franquiciaId, sucursalId, nombre);
+        return franquiciaPersistencePort.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException(ErrorMessages.FRANQUICIA_NO_ENCONTRADA)))
                 .flatMap(franquicia -> {
                     Sucursal sucursal = obtenerSucursal(franquicia, sucursalId);
                     sucursal.setNombre(nombre);
-                    return franquiciaRepository.save(franquicia);
+                    return franquiciaPersistencePort.save(franquicia);
                 });
     }
 
     public Mono<Franquicia> actualizarNombreProducto(String franquiciaId, String sucursalId, String productoId, String nombre) {
-        return franquiciaRepository.findById(franquiciaId)
-                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+        log.info("Actualizando nombre producto de franquiciaId={} sucursalId={} productoId={} nuevoNombre={}",
+                franquiciaId, sucursalId, productoId, nombre);
+        return franquiciaPersistencePort.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException(ErrorMessages.FRANQUICIA_NO_ENCONTRADA)))
                 .flatMap(franquicia -> {
                     Sucursal sucursal = obtenerSucursal(franquicia, sucursalId);
                     Producto producto = obtenerProducto(sucursal, productoId);
                     producto.setNombre(nombre);
-                    return franquiciaRepository.save(franquicia);
+                    return franquiciaPersistencePort.save(franquicia);
                 });
     }
 
@@ -137,31 +152,22 @@ public class FranquiciaService {
     private Sucursal obtenerSucursal(Franquicia franquicia, String sucursalId) {
         List<Sucursal> sucursales = franquicia.getSucursales();
         if (sucursales == null) {
-            throw new NotFoundException("Sucursal no encontrada en la franquicia");
+            throw new NotFoundException(ErrorMessages.SUCURSAL_NO_ENCONTRADA);
         }
         return sucursales.stream()
                 .filter(sucursal -> sucursal.getId().equals(sucursalId))
                 .findFirst()
-                .orElseThrow(() -> new NotFoundException("Sucursal no encontrada en la franquicia"));
+                .orElseThrow(() -> new NotFoundException(ErrorMessages.SUCURSAL_NO_ENCONTRADA));
     }
 
     private Producto obtenerProducto(Sucursal sucursal, String productoId) {
         List<Producto> productos = sucursal.getProductos();
         if (productos == null) {
-            throw new NotFoundException("Producto no encontrado en la sucursal");
+            throw new NotFoundException(ErrorMessages.PRODUCTO_NO_ENCONTRADO);
         }
         return productos.stream()
                 .filter(producto -> producto.getId().equals(productoId))
                 .findFirst()
-                .orElseThrow(() -> new NotFoundException("Producto no encontrado en la sucursal"));
-    }
-
-    public record ProductoMaximoStock(
-            String sucursalId,
-            String sucursalNombre,
-            String productoId,
-            String productoNombre,
-            Integer stock
-    ) {
+                .orElseThrow(() -> new NotFoundException(ErrorMessages.PRODUCTO_NO_ENCONTRADO));
     }
 }

@@ -1,5 +1,8 @@
 package com.franquicias.backend.api;
 
+import com.franquicias.backend.application.dto.ProductoMaximoStock;
+import com.franquicias.backend.application.usecase.FranquiciaUseCase;
+import com.franquicias.backend.api.mapper.FranquiciaResponseMapper;
 import com.franquicias.backend.api.request.ActualizarStockRequest;
 import com.franquicias.backend.api.request.ActualizarNombreRequest;
 import com.franquicias.backend.api.request.CrearFranquiciaRequest;
@@ -7,12 +10,9 @@ import com.franquicias.backend.api.request.CrearProductoRequest;
 import com.franquicias.backend.api.request.CrearSucursalRequest;
 import com.franquicias.backend.api.response.FranquiciaResponse;
 import com.franquicias.backend.api.response.ProductoMaximoStockResponse;
-import com.franquicias.backend.api.response.ProductoResponse;
-import com.franquicias.backend.api.response.SucursalResponse;
-import com.franquicias.backend.domain.Franquicia;
-import com.franquicias.backend.service.FranquiciaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,16 +29,19 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/franquicias")
+@Slf4j
 @RequiredArgsConstructor
 public class FranquiciaController {
 
-    private final FranquiciaService franquiciaService;
+    private final FranquiciaUseCase franquiciaUseCase;
+    private final FranquiciaResponseMapper franquiciaResponseMapper;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<FranquiciaResponse> crearFranquicia(@Valid @RequestBody CrearFranquiciaRequest request) {
-        return franquiciaService.crearFranquicia(request.nombre())
-                .map(this::toResponse);
+        log.info("Request crearFranquicia nombre={}", request.nombre());
+        return franquiciaUseCase.crearFranquicia(request.nombre())
+                .map(franquiciaResponseMapper::toResponse);
     }
 
     @PostMapping("/{franquiciaId}/sucursales")
@@ -47,8 +50,9 @@ public class FranquiciaController {
             @PathVariable String franquiciaId,
             @Valid @RequestBody CrearSucursalRequest request
     ) {
-        return franquiciaService.agregarSucursal(franquiciaId, request.nombre())
-                .map(this::toResponse);
+        log.info("Request agregarSucursal franquiciaId={} nombre={}", franquiciaId, request.nombre());
+        return franquiciaUseCase.agregarSucursal(franquiciaId, request.nombre())
+                .map(franquiciaResponseMapper::toResponse);
     }
 
     @PostMapping("/{franquiciaId}/sucursales/{sucursalId}/productos")
@@ -58,8 +62,10 @@ public class FranquiciaController {
             @PathVariable String sucursalId,
             @Valid @RequestBody CrearProductoRequest request
     ) {
-        return franquiciaService.agregarProducto(franquiciaId, sucursalId, request.nombre(), request.stock())
-                .map(this::toResponse);
+        log.info("Request agregarProducto franquiciaId={} sucursalId={} nombre={} stock={}",
+                franquiciaId, sucursalId, request.nombre(), request.stock());
+        return franquiciaUseCase.agregarProducto(franquiciaId, sucursalId, request.nombre(), request.stock())
+                .map(franquiciaResponseMapper::toResponse);
     }
 
     @DeleteMapping("/{franquiciaId}/sucursales/{sucursalId}/productos/{productoId}")
@@ -68,8 +74,9 @@ public class FranquiciaController {
             @PathVariable String sucursalId,
             @PathVariable String productoId
     ) {
-        return franquiciaService.eliminarProducto(franquiciaId, sucursalId, productoId)
-                .map(this::toResponse);
+        log.info("Request eliminarProducto franquiciaId={} sucursalId={} productoId={}", franquiciaId, sucursalId, productoId);
+        return franquiciaUseCase.eliminarProducto(franquiciaId, sucursalId, productoId)
+                .map(franquiciaResponseMapper::toResponse);
     }
 
     @PatchMapping("/{franquiciaId}/sucursales/{sucursalId}/productos/{productoId}/stock")
@@ -79,21 +86,18 @@ public class FranquiciaController {
             @PathVariable String productoId,
             @Valid @RequestBody ActualizarStockRequest request
     ) {
-        return franquiciaService.actualizarStockProducto(franquiciaId, sucursalId, productoId, request.stock())
-                .map(this::toResponse);
+        log.info("Request actualizarStock franquiciaId={} sucursalId={} productoId={} stock={}",
+                franquiciaId, sucursalId, productoId, request.stock());
+        return franquiciaUseCase.actualizarStockProducto(franquiciaId, sucursalId, productoId, request.stock())
+                .map(franquiciaResponseMapper::toResponse);
     }
 
     @GetMapping("/{franquiciaId}/productos/max-stock-por-sucursal")
     public Mono<List<ProductoMaximoStockResponse>> obtenerMaximoStockPorSucursal(@PathVariable String franquiciaId) {
-        return franquiciaService.obtenerProductoMaximoStockPorSucursal(franquiciaId)
+        log.info("Request obtenerMaximoStockPorSucursal franquiciaId={}", franquiciaId);
+        return franquiciaUseCase.obtenerProductoMaximoStockPorSucursal(franquiciaId)
                 .map(productos -> productos.stream()
-                        .map(producto -> new ProductoMaximoStockResponse(
-                                producto.sucursalId(),
-                                producto.sucursalNombre(),
-                                producto.productoId(),
-                                producto.productoNombre(),
-                                producto.stock()
-                        ))
+                        .map(franquiciaResponseMapper::toProductoMaximoStockResponse)
                         .toList());
     }
 
@@ -102,8 +106,9 @@ public class FranquiciaController {
             @PathVariable String franquiciaId,
             @Valid @RequestBody ActualizarNombreRequest request
     ) {
-        return franquiciaService.actualizarNombreFranquicia(franquiciaId, request.nombre())
-                .map(this::toResponse);
+        log.info("Request actualizarNombreFranquicia franquiciaId={} nombre={}", franquiciaId, request.nombre());
+        return franquiciaUseCase.actualizarNombreFranquicia(franquiciaId, request.nombre())
+                .map(franquiciaResponseMapper::toResponse);
     }
 
     @PatchMapping("/{franquiciaId}/sucursales/{sucursalId}/nombre")
@@ -112,8 +117,10 @@ public class FranquiciaController {
             @PathVariable String sucursalId,
             @Valid @RequestBody ActualizarNombreRequest request
     ) {
-        return franquiciaService.actualizarNombreSucursal(franquiciaId, sucursalId, request.nombre())
-                .map(this::toResponse);
+        log.info("Request actualizarNombreSucursal franquiciaId={} sucursalId={} nombre={}",
+                franquiciaId, sucursalId, request.nombre());
+        return franquiciaUseCase.actualizarNombreSucursal(franquiciaId, sucursalId, request.nombre())
+                .map(franquiciaResponseMapper::toResponse);
     }
 
     @PatchMapping("/{franquiciaId}/sucursales/{sucursalId}/productos/{productoId}/nombre")
@@ -123,24 +130,9 @@ public class FranquiciaController {
             @PathVariable String productoId,
             @Valid @RequestBody ActualizarNombreRequest request
     ) {
-        return franquiciaService.actualizarNombreProducto(franquiciaId, sucursalId, productoId, request.nombre())
-                .map(this::toResponse);
-    }
-
-    private FranquiciaResponse toResponse(Franquicia franquicia) {
-        List<SucursalResponse> sucursales = franquicia.getSucursales().stream()
-                .map(sucursal -> new SucursalResponse(
-                        sucursal.getId(),
-                        sucursal.getNombre(),
-                        sucursal.getProductos().stream()
-                                .map(producto -> new ProductoResponse(
-                                        producto.getId(),
-                                        producto.getNombre(),
-                                        producto.getStock()
-                                ))
-                                .toList()
-                ))
-                .toList();
-        return new FranquiciaResponse(franquicia.getId(), franquicia.getNombre(), sucursales);
+        log.info("Request actualizarNombreProducto franquiciaId={} sucursalId={} productoId={} nombre={}",
+                franquiciaId, sucursalId, productoId, request.nombre());
+        return franquiciaUseCase.actualizarNombreProducto(franquiciaId, sucursalId, productoId, request.nombre())
+                .map(franquiciaResponseMapper::toResponse);
     }
 }

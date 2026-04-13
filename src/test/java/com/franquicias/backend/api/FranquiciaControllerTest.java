@@ -15,9 +15,9 @@ import com.franquicias.backend.service.NotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 
@@ -35,7 +35,7 @@ class FranquiciaControllerTest {
     @Autowired
     private WebTestClient webTestClient;
 
-    @MockBean
+    @MockitoBean
     private FranquiciaUseCase franquiciaUseCase;
 
     @Test
@@ -50,8 +50,9 @@ class FranquiciaControllerTest {
                 .exchange()
                 .expectStatus().isCreated()
                 .expectBody()
-                .jsonPath("$.nombre").isEqualTo("Franquicia Test")
-                .jsonPath("$.sucursales[0].nombre").isEqualTo("Sucursal Norte");
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.data.nombre").isEqualTo("Franquicia Test")
+                .jsonPath("$.data.sucursales[0].nombre").isEqualTo("Sucursal Norte");
     }
 
     @Test
@@ -76,7 +77,8 @@ class FranquiciaControllerTest {
                 .exchange()
                 .expectStatus().isCreated()
                 .expectBody()
-                .jsonPath("$.id").isEqualTo("f1");
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.data.id").isEqualTo("f1");
     }
 
     @Test
@@ -91,7 +93,8 @@ class FranquiciaControllerTest {
                 .exchange()
                 .expectStatus().isCreated()
                 .expectBody()
-                .jsonPath("$.sucursales[0].productos[0].stock").isEqualTo(25);
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.data.sucursales[0].productos[0].stock").isEqualTo(25);
     }
 
     @Test
@@ -116,8 +119,9 @@ class FranquiciaControllerTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$[0].sucursalId").isEqualTo("s1")
-                .jsonPath("$[0].productoNombre").isEqualTo("Coca Cola");
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.data[0].sucursalId").isEqualTo("s1")
+                .jsonPath("$.data[0].productoNombre").isEqualTo("Coca Cola");
     }
 
     @Test
@@ -132,7 +136,8 @@ class FranquiciaControllerTest {
                 .exchange()
                 .expectStatus().isNotFound()
                 .expectBody()
-                .jsonPath("$.error").isEqualTo("Franquicia no encontrada");
+                .jsonPath("$.success").isEqualTo(false)
+                .jsonPath("$.data.error").isEqualTo("Franquicia no encontrada");
     }
 
     @Test
@@ -142,7 +147,8 @@ class FranquiciaControllerTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.status").isEqualTo("UP");
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.data.status").isEqualTo("UP");
     }
 
     private Franquicia franquiciaConDatos() {

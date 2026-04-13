@@ -11,6 +11,39 @@ API reactiva para administrar franquicias, sus sucursales y productos con stock.
 - Terraform (IaC)
 - Railway (despliegue en nube)
 
+## Arquitectura y base de datos (breve)
+
+Se usa **Clean Architecture**:
+- `api` (controllers/http)
+- `application` (casos de uso + puertos)
+- `infrastructure` (adaptadores, MongoDB)
+- `domain` (entidades de negocio)
+
+La base de datos es **MongoDB** con una coleccion principal de `franquicias`, donde cada documento guarda sus `sucursales` y cada sucursal sus `productos`.
+
+### Arbol (resumen)
+
+```text
+src/main/java/com/franquicias/backend
+├── api
+│   ├── request
+│   ├── response
+│   ├── mapper
+│   ├── FranquiciaController.java
+│   ├── GlobalExceptionHandler.java
+│   └── HealthController.java
+├── application
+│   ├── dto
+│   ├── port/out
+│   ├── support
+│   └── usecase
+├── domain
+├── infrastructure/adapter/out/mongodb
+├── repository
+├── config
+└── FranquiciasBackendApplication.java
+```
+
 ## Requisitos
 
 - Docker Desktop
@@ -52,6 +85,12 @@ docker compose up -d mongodb
 
 - `MONGODB_URI` (default: `mongodb://admin:admin@localhost:27017/franquiciasdb?authSource=admin`)
 - `PORT` o `SERVER_PORT` (default: `8080`)
+
+## Documentacion Swagger (OpenAPI)
+
+- Local: `http://localhost:8080/swagger-ui.html`
+- Nube: `https://franquicias-backend-production.up.railway.app/swagger-ui.html`
+- JSON OpenAPI: `/v3/api-docs`
 
 ## Despliegue en la nube (Railway + MongoDB Atlas)
 

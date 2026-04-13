@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -79,6 +80,60 @@ public class FranquiciaService {
                 });
     }
 
+    public Mono<List<ProductoMaximoStock>> obtenerProductoMaximoStockPorSucursal(String franquiciaId) {
+        return franquiciaRepository.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+                .map(franquicia -> franquicia.getSucursales().stream()
+                        .map(sucursal -> buscarProductoConMayorStock(sucursal)
+                                .map(producto -> new ProductoMaximoStock(
+                                        sucursal.getId(),
+                                        sucursal.getNombre(),
+                                        producto.getId(),
+                                        producto.getNombre(),
+                                        producto.getStock()
+                                )))
+                        .flatMap(Optional::stream)
+                        .toList());
+    }
+
+    public Mono<Franquicia> actualizarNombreFranquicia(String franquiciaId, String nombre) {
+        return franquiciaRepository.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+                .flatMap(franquicia -> {
+                    franquicia.setNombre(nombre);
+                    return franquiciaRepository.save(franquicia);
+                });
+    }
+
+    public Mono<Franquicia> actualizarNombreSucursal(String franquiciaId, String sucursalId, String nombre) {
+        return franquiciaRepository.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+                .flatMap(franquicia -> {
+                    Sucursal sucursal = obtenerSucursal(franquicia, sucursalId);
+                    sucursal.setNombre(nombre);
+                    return franquiciaRepository.save(franquicia);
+                });
+    }
+
+    public Mono<Franquicia> actualizarNombreProducto(String franquiciaId, String sucursalId, String productoId, String nombre) {
+        return franquiciaRepository.findById(franquiciaId)
+                .switchIfEmpty(Mono.error(new NotFoundException("Franquicia no encontrada")))
+                .flatMap(franquicia -> {
+                    Sucursal sucursal = obtenerSucursal(franquicia, sucursalId);
+                    Producto producto = obtenerProducto(sucursal, productoId);
+                    producto.setNombre(nombre);
+                    return franquiciaRepository.save(franquicia);
+                });
+    }
+
+    private Optional<Producto> buscarProductoConMayorStock(Sucursal sucursal) {
+        if (sucursal.getProductos() == null || sucursal.getProductos().isEmpty()) {
+            return Optional.empty();
+        }
+        return sucursal.getProductos().stream()
+                .max((a, b) -> Integer.compare(a.getStock(), b.getStock()));
+    }
+
     private Sucursal obtenerSucursal(Franquicia franquicia, String sucursalId) {
         List<Sucursal> sucursales = franquicia.getSucursales();
         if (sucursales == null) {
@@ -99,5 +154,14 @@ public class FranquiciaService {
                 .filter(producto -> producto.getId().equals(productoId))
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("Producto no encontrado en la sucursal"));
+    }
+
+    public record ProductoMaximoStock(
+            String sucursalId,
+            String sucursalNombre,
+            String productoId,
+            String productoNombre,
+            Integer stock
+    ) {
     }
 }

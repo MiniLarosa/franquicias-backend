@@ -6,4 +6,4 @@ spring:
       uri: ${MONGODB_URI:mongodb://admin:admin@localhost:27017/franquiciasdb?authSource=admin}
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${PORT:${SERVER_PORT:8080}}

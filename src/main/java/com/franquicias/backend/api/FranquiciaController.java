@@ -1,10 +1,12 @@
 package com.franquicias.backend.api;
 
 import com.franquicias.backend.api.request.ActualizarStockRequest;
+import com.franquicias.backend.api.request.ActualizarNombreRequest;
 import com.franquicias.backend.api.request.CrearFranquiciaRequest;
 import com.franquicias.backend.api.request.CrearProductoRequest;
 import com.franquicias.backend.api.request.CrearSucursalRequest;
 import com.franquicias.backend.api.response.FranquiciaResponse;
+import com.franquicias.backend.api.response.ProductoMaximoStockResponse;
 import com.franquicias.backend.api.response.ProductoResponse;
 import com.franquicias.backend.api.response.SucursalResponse;
 import com.franquicias.backend.domain.Franquicia;
@@ -13,6 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -77,6 +80,50 @@ public class FranquiciaController {
             @Valid @RequestBody ActualizarStockRequest request
     ) {
         return franquiciaService.actualizarStockProducto(franquiciaId, sucursalId, productoId, request.stock())
+                .map(this::toResponse);
+    }
+
+    @GetMapping("/{franquiciaId}/productos/max-stock-por-sucursal")
+    public Mono<List<ProductoMaximoStockResponse>> obtenerMaximoStockPorSucursal(@PathVariable String franquiciaId) {
+        return franquiciaService.obtenerProductoMaximoStockPorSucursal(franquiciaId)
+                .map(productos -> productos.stream()
+                        .map(producto -> new ProductoMaximoStockResponse(
+                                producto.sucursalId(),
+                                producto.sucursalNombre(),
+                                producto.productoId(),
+                                producto.productoNombre(),
+                                producto.stock()
+                        ))
+                        .toList());
+    }
+
+    @PatchMapping("/{franquiciaId}/nombre")
+    public Mono<FranquiciaResponse> actualizarNombreFranquicia(
+            @PathVariable String franquiciaId,
+            @Valid @RequestBody ActualizarNombreRequest request
+    ) {
+        return franquiciaService.actualizarNombreFranquicia(franquiciaId, request.nombre())
+                .map(this::toResponse);
+    }
+
+    @PatchMapping("/{franquiciaId}/sucursales/{sucursalId}/nombre")
+    public Mono<FranquiciaResponse> actualizarNombreSucursal(
+            @PathVariable String franquiciaId,
+            @PathVariable String sucursalId,
+            @Valid @RequestBody ActualizarNombreRequest request
+    ) {
+        return franquiciaService.actualizarNombreSucursal(franquiciaId, sucursalId, request.nombre())
+                .map(this::toResponse);
+    }
+
+    @PatchMapping("/{franquiciaId}/sucursales/{sucursalId}/productos/{productoId}/nombre")
+    public Mono<FranquiciaResponse> actualizarNombreProducto(
+            @PathVariable String franquiciaId,
+            @PathVariable String sucursalId,
+            @PathVariable String productoId,
+            @Valid @RequestBody ActualizarNombreRequest request
+    ) {
+        return franquiciaService.actualizarNombreProducto(franquiciaId, sucursalId, productoId, request.nombre())
                 .map(this::toResponse);
     }
 

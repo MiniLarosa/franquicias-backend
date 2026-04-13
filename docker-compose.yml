@@ -11,6 +11,27 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - franquicias-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: franquicias-backend
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    environment:
+      MONGODB_URI: mongodb://admin:admin@mongodb:27017/franquiciasdb?authSource=admin
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - franquicias-net
 
 volumes:
   mongo_data:
+
+networks:
+  franquicias-net:
